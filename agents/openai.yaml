@@ -1,0 +1,4 @@
+interface:
+  display_name: "Verify Bug on Mantis"
+  short_description: "Verify Mantis bugs in iClone or Character Creator"
+  default_prompt: "Use $verify-bug-on-mantis <bug-id> in <version folder>."
