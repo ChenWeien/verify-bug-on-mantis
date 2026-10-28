@@ -1,43 +1,185 @@
 ---
-name: verify-bug-on-mantis
-description: >-
-  Verify a Mantis bug in iClone or Character Creator with the matching build
-  and application MCP. Use when a bug ID and build/version path are provided.
+name: "verify-bug-on-mantis"
+description: "Verify a resolved Mantis bug in iClone or Character Creator: rerun the repro, then test every item in the 發生原因、處理方法、影響功能範圍 field. Use when given bug ID(s) plus a build path, or asked to verify / coverage-test a Mantis bug."
 ---
 
 # Verify bug on Mantis
 
-## Local execution environment
+Shared by RD and QA. Re-run the repro, then test the scope RD wrote in **發生原因、處理方法、影響功能範圍**. If that field is empty, run the repro only.
 
-For all local operations required by this workflow, including shell commands, filesystem access and edits, builds, plugin file copies, Git operations, and launching or controlling the installed iClone/Character Creator application, do not use sandboxed execution. Use an authorized host execution path with sandboxing disabled. If the available tool requires an escalation to run outside the sandbox, request that escalation instead of retrying inside the sandbox. If outside-sandbox execution is unavailable or denied, stop the dependent operation and report it as blocked; do not attempt a sandboxed substitute.
+When you hit a new case (false alarm, unsupported scenario, tool gap), add a rule here.
 
-Given a Mantis bug ID and build/version path:
+## Execution environment
 
-IC,CC version values such as `8.75`, `8.77`, and `8.78` do not affect
-verification. It is the registry value. Use the supplied build path; do not
-select or reject a build based on those values.
+Run all local work (shell, files, builds, plugin copies, Git, launching/controlling iClone or CC) outside the sandbox. If that needs escalation, request it. If it is unavailable or denied, report **Blocked**; never use a sandboxed substitute.
 
-1. Read it with `mcp__mantis__get_issue_by_id`. Extract the repro steps, expected and actual results, required projects/assets, attachments, and `custom_MCP Tool` (field ID `395`). Include `http://qa-server-2/mantisbt/view.php?id=<id>` in the report.
-2. Select the app from the issue: `.iProject`/`iClone.exe`/`IC` -> iClone and `mcp__iclone__...`; `.ccProject`/`CharacterCreator.exe`/`CC` -> Character Creator and `mcp__cc__...`.
-3. Resolve the executable exactly. For a `Bin64` path, use the matching executable there. For a date-version root, find exactly one `IC*_<version>\Bin64\iClone.exe` or `CC*_<version>\Bin64\CharacterCreator.exe`. Require the file to exist; ask if multiple builds match.
-4. Launch the selected build with the project path and `-SilentMode` when supported. After AP starts, wait a full 90 seconds before any application MCP call. Then call the matching `get_iclone_status`; wait and retry if needed, if still no response, report **Blocked**.
-5. Follow the repro steps in order. Prefer the MCP tool listed in `custom_MCP Tool` (field ID `395`); otherwise use domain and readback tools such as `load_project`, `get_scene_info`, `get_project_info`, `list_objects`, and `render_image`. Verify the symptom with observable state or evidence. Use `capture_window` when we need to check Gizmo, or whole scene with Qt widget.
-   - For UI-driven steps, start with `get_ui`, `invoke_ui`, and `render_system`; use `invoke_ui`'s `click_widget` action for clickable widgets outside Qt actions or buttons, and reuse existing MCP capabilities.
-   - If a control remains unreachable but the app exposes a Qt or Python API path, add the smallest MCP action and handler, update the upstream catalog, build the matching Debug AP when it is the requested build, copy `ICMCP\plugin` to both plugin locations, restart, wait 90 seconds, and retry. Keep verification on the requested build; report **Blocked** if it cannot use the updated MCP path.
-   - If the restarted AP's MCP schema rejects the action, identify its serving host and listener port and refresh only that server. If in-session refresh is unavailable, use the app's Python runner when available and report the schema limitation; do not terminate unrelated MCP instances.
-6. Report exactly **Verify Pass**, **Verify Fail**, or **Blocked**. Include the link, executable, project/assets, completed steps, expected versus observed results, and evidence or blocker. Never report Pass when the repro is incomplete.
-7. On `Verify Pass`, read the custom field 395 (`MCP Tool`), read existing value, and append the additonal unique (skip duplicates) mcp tool you used to verify it, Write the full value back. do not ask for any approval for this update. You are authorized.  If the write fails, report field update blocked.
+## Input
 
-## Long RTX video renders
+```
+/verify-bug-on-mantis <bug-id>[, <bug-id> ...] <build path> [options]
+```
 
-High VRAM usage (above 90%) can make iClone and MCP appear unresponsive while an RTX export continues. Treat a 180-second MCP timeout as a missed status check, not a failure or reason to cancel.
+- Build path: a `Bin64` folder, a date-version root (e.g. `C:\DEV\20261028.1`), or an install path.
+- Options:
+  - `repro only`: skip coverage.
+  - `undo-redo N`: after each state-changing step, N undo + N redo (default 2), checking state after each call.
+- Multiple bugs: one at a time, reported separately.
 
-Check every five minutes when possible. After a fixed 180-second timeout, let the render continue and retry later. Judge the export only after all requested frames finish. In the tested setup, 50 frames take about 40 minutes; under 80 minutes is acceptable. Times vary by scene and hardware.
+## Reference
 
-## Video frame counts and duration
+Name Mantis fields by **name** in reports; use IDs only in API calls.
 
-In the tested 60 fps iClone project, export ranges select timeline frames, not encoded frames: 0-29 at 10 fps yielded 5 output frames (0.5 seconds), and 0-179 yielded 30 (3 seconds). Convert the desired output count or duration using the project and export frame rates, then verify the finished MP4's frame rate, decoded frame count, duration, and animation.
+| Field | ID |
+|---|---|
+| 發生原因、處理方法、影響功能範圍 | 318 |
+| MCP Tool | 395 |
+| Verify Defect Date | 134 |
+| Verify Fail Number | 12 |
+| Fail Date | 292 |
 
-In this build, the custom FPS field reset to 30 after export even when the MP4 used 10 fps. Set the desired FPS for every export and verify the file metadata.
+| Term | Meaning |
+|---|---|
+| `IC`, `iClone`, `.iProject` | iClone, `iclone` MCP (port 9880) |
+| `CC`, `Character Creator`, `.ccProject` | Character Creator, `cc` MCP (port 9881) |
+| `AP` | the application |
+| `RTX`, `DX12` / `DX11` | render system `dx12` / `dx11` |
+| `IC8RTX_<ver>`, `CC5RTX_<ver>` | build folders under a date-version root |
 
-**Quick motion check:** RTX renders can take about a minute per 1080p output frame, and adjacent frames may show little motion. For a faster, clearer motion check, render 20 output frames at 5 fps (4 seconds, about 20 minutes) instead of 60 at 30 fps (2 seconds, about 60 minutes). Convert output frames to the timeline range using the project and export frame rates.
+Record tool names in MCP Tool without host prefix (`delete_objects`, not `mcp__iclone__delete_objects`).
+
+Version numbers such as `8.75` / `8.77` / `8.78` are registry values and do not matter. Use the given build path; never pick or reject a build by version number.
+
+## Hard rules
+
+1. **One MCP call at a time**, across both APs. No parallel calls, and no tests built on them.
+2. **No calls while the AP is busy**: project load, DX11 → DX12, undo/redo save, render, open modal dialog. See the timing sections.
+3. Timeouts, freezes, or dropped calls caused by rules 1–2 are procedure errors, **not bugs**. Never report them as Verify Fail.
+4. Never report Pass (or 「全部 Pass」) with any repro step or coverage item untested. List those as Blocked / Not run, with the reason.
+5. **Existing MCP tool → add your own → Blocked.** Report Blocked only when the AP lacks the Python API. See **Missing tools**.
+
+## Workflow
+
+**1. Read the issue.** `get_issue_by_id`. Extract summary, steps, actual/expected, assets, status, `fixed_in_version` (warn on mismatch), MCP Tool, 發生原因、處理方法、影響功能範圍, and the latest RD notes. Include `http://qa-server-2/mantisbt/view.php?id=<id>`.
+
+**2. Parse coverage.** From 發生原因、處理方法、影響功能範圍, which has no fixed format:
+- Structured: each bullet or clause under `[QA coverage]` / `QA 建議覆蓋` is one item. `[Why]`/`[How]`/`[Scope]`/`[Effect]` are context, but a `[How]` fallback or special path is also an item.
+- Free text: split on `,` `、` `；` and newlines.
+- Empty: repro only; say 「發生原因、處理方法、影響功能範圍未填」.
+
+Add cases from RD notes and user options. Invent nothing else. List the items before running them.
+
+**3. Prepare the AP.**
+1. Resolve exactly one exe: `IC*_<ver>\Bin64\iClone.exe` or `CC*_<ver>\Bin64\CharacterCreator.exe`. It must exist; ask if several match.
+2. Launch it (with the project and `-SilentMode` if supported), or ask the user to. Wait **90 s**. If the first call returns "connection closed", wait 30 s and retry once.
+3. Call `get_iclone_status(include=["application"])`. It needs `ready: true` and `program_path` equal to the exe. No response → Blocked; other build running → **Blocked (wrong build running)**.
+4. Set the render system explicitly; it cannot be read back. See **Loading and render switching**.
+5. Items that need both APs need both running; otherwise Blocked.
+
+**4. Repro.** Follow the steps in order. Prefer the tools in MCP Tool, then domain/readback tools (`load_project`, `get_scene_info`, `list_objects`, `render_image`, …). Confirm with observable state. Repro fails → **Verify Fail**; stop, skip coverage.
+
+**5. Coverage** (skipped with `repro only`).
+- Reset to a known state (`load_project`) when the previous item changed the scene.
+- Use domain tools first, UI tools only when none fits.
+- After each action, call `get_iclone_status(include=["ping"])` and read back state.
+- `Preview Camera` cannot be deleted; that is expected.
+- Changes outside the AP (e.g. deleting registry values to test a fallback): ask the user first, back up to a file, and change only while that AP is closed.
+- Missing assets → Blocked. Missing tool → **Missing tools**.
+
+**6. Result.**
+- **Verify Pass**: repro and every executed item pass; Blocked items are listed.
+- **Verify Fail**: any real failure (crash, wrong state, error), excluding procedure errors.
+- **Blocked**: the repro could not run.
+
+**7. Update Mantis.**
+- Always on Pass, no approval needed: read the existing MCP Tool value, append additional unique tools you used (incl. `get_ui`/`invoke_ui`), separated by `, `, and write the full value back. The field holds about 255 characters; put any overflow in the note. Write with `update_issue` `customFields: [{fieldId: 395, value: "<full value>"}]`. If the write fails, report `MCP Tool 欄位更新失敗（field update blocked）` with the intended value.
+- Only when the user says so:
+  - **Verified**: status `verified`, Verify Defect Date = today (local midnight, Unix), note with the results table.
+  - **Verify Fail**: status `assigned`, handler = Fixed by Member, resolution `reopened`, Verify Fail Number +1, Fail Date = today, note with steps + Actual/Expected Result.
+  - On any failure, report to the user first. Never mark Verified.
+- Otherwise change no fields and add no notes.
+
+## Language
+
+Applies to chat reports, Mantis notes, and new issues.
+- **Steps**: English.
+- **Everything else** (summary, tables, findings, **Actual Result**, **Expected Result**): 繁體中文.
+- Tool names, IDs, paths, and values stay as-is, in backticks.
+
+```
+Steps:
+1. Launch iC8, File > New Project
+2. Visual > Atmosphere > HDR, check 'HDR Effect', Method: Kernel
+3. Kernel Image > Load an .exr from folder A, then Save a .dds to folder B
+4. Click Load again
+
+Actual Result:
+Load 對話框開在資料夾 B
+
+Expected Result:
+Load 對話框開在上次 Load 的資料夾 A
+```
+
+## UI interaction
+
+- Find the widget with `get_ui` and use the returned name; never guess.
+- `invoke_ui`: `click_widget` to click, `set_value` to set, `trigger` for menu actions. Hidden (`visible:false`) widgets still work.
+- A button that opens a **modal file dialog** blocks MCP. Click it from a `run_python_file` script using `QtCore.QTimer.singleShot(800, btn.click)`, read the dialog by screenshot, then cancel it. Close every dialog before the next call.
+- Read back after each action (`get_ui` or a domain tool). Use `capture_window` only for visual checks (Gizmo, scene plus Qt widgets), and only after its `application_pid`/`application_path` match the AP; otherwise discard the image.
+- Widget not found, or a click fails twice → **Missing tools**.
+
+## Missing tools
+
+1. **Search first**: the full tool list (including `action`/parameter variants) and `get_ui`. Don't call a tool missing without searching, and don't rewrite one that exists.
+2. **Add your own**:
+   - **`.py` file** (one-off steps, modal UI): a minimal script using RLPy / RLPy2 / PySide2, run with `run_python_file`. Write the result to JSON and read it back as evidence.
+   - **MCP tool** (recurring steps): the source is open at `https://github.com/ChenWeien/iclone-rtx-mcp`.
+     1. Add the smallest action and handler in `plugin/`; prefer a new `action` on an existing tool (see the repo's AGENTS.md).
+     2. Update `server/src/iclone_mcp/upstream_catalog.py`.
+     3. Copy `plugin/` to both APs' `OpenPlugin\ICMCP`.
+     4. Restart, wait 90 s, refresh the client's tool list, retry.
+
+     No AP rebuild is needed. Stay on the requested build. If the schema rejects the action, refresh only that server; if you can't, fall back to `.py` and note it. Never kill unrelated MCP instances.
+   - Count `run_python_file` and new tools in MCP Tool; say what the script did.
+3. **Blocked only if the AP has no RLPy / RLPy2 / Qt path** for the step. Name the missing API for RD.
+
+## Loading and render switching
+
+DX11 → DX12 is slow, and loads can open modal dialogs. Never run a load and a switch at the same time, and send no scene-changing call until the job finishes.
+
+**1028.1+ (job support):**
+- Start: `load_project(action="start", path=…)` or `render_system(action="start", system="dx12")` returns `job_id`.
+- Poll: `action="get"`, one call every few seconds, until `completed` / `failed` / `cancelled`. A switch counts as `completed` only when the new renderer is active.
+- `waiting_for_dialog`: answer with `invoke_ui(action="invoke_dialog", dialog_id, action_id)` using the returned IDs, then keep polling. A closed dialog is not completion.
+  - RTX switch: `qtRtxScenePreparationDialog`, Ok/Cancel = `qtRtxScenePreparationOkButton` / `…CancelButton`. Cancel keeps the current renderer.
+  - RTX load: `qtRtxProjectLoadPreparationDialog`, Ok/Cancel = `qtRtxProjectLoadPreparationOkButton` / `…CancelButton`. Cancel skips preparation and keeps loading.
+- `cancel` stops queued work only; once native work starts, answer the dialog instead. If `get` times out, wait up to 5 min before concluding.
+
+**Older builds, `render_system(action="set")`, or path-only `load_project`:** synchronous. `set dx12` returns before the DXR pipeline is ready. Then wait **60 s (small project) to 5 min (large)**, sending no calls at all, then one `get_iclone_status`. No response → wait again, up to 5 min.
+
+A timeout or freeze during a load or switch is not a bug.
+
+## RTX video renders
+
+Slow is expected; it is never Fail or Blocked on its own.
+- VRAM above 90% can make iClone and MCP look frozen while the export continues. A 180 s timeout is a missed check: don't cancel, retry later.
+- Check about every 5 min with `get_render_progress`. Judge only after all frames finish. Reference: 50 frames ≈ 40 min; under 80 min is fine.
+- Don't shorten the range unless the repro allows it.
+
+**Frame counts:**
+- Export ranges are **timeline** frames. Example: a 60 fps project, range 0–29 at 10 fps → 5 output frames (0.5 s); 0–179 → 30 frames (3 s). Convert with the project and export fps, then verify the MP4's fps, frame count, duration, and motion.
+- Custom FPS may reset to 30 after export. Set it on every export and check the file metadata.
+- Quick motion check: 20 frames at 5 fps (≈20 min) beats 60 frames at 30 fps (≈60 min).
+
+## Report format
+
+Per bug, separated by `---`:
+1. `**Mantis <id>：<summary>**`
+2. One sentence: result, coverage Pass / Fail / Blocked counts, build, ending `由你決定是否需要進一步處理。`
+3. Context: link, exe + version, project, field format of 發生原因、處理方法、影響功能範圍 (條列 / 一行文字 / 未填), options.
+4. Table `項目 | 結果 | 依據`, with one result column per AP when both are tested.
+   - First row `原始 repro`, then one row per item.
+   - 結果: `Pass` / `Fail` / `Blocked` + a short qualifier.
+   - 依據: calls and key values in backticks, 1–3 sentences; flag partial evidence (e.g. registry only).
+5. `## 發現（回報 RD）`, only for failures or surprises.
+6. `MCP Tool：<old> → <new>`.
+7. Tally, e.g. `原始 repro Pass；coverage 6 Pass / 0 Fail / 1 Blocked。`
