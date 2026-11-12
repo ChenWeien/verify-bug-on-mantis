@@ -93,7 +93,7 @@ Add cases from RD notes and user options. Invent nothing else. List the items be
 **7. Update Mantis.**
 - Always on Pass, no approval needed: read the existing MCP Tool value, append additional unique tools you used (incl. `get_ui`/`invoke_ui`), separated by `, `, and write the full value back. The field holds about 255 characters; put any overflow in the note. Write with `update_issue` `customFields: [{fieldId: 395, value: "<full value>"}]`. If the write fails, report `MCP Tool 欄位更新失敗（field update blocked）` with the intended value.
 - Only when the user says so:
-  - **Verified**: status `verified`, Verify Defect Date = today (local midnight, Unix), note with the results table.
+  - **Verified**: status `verified`, Verify Defect Date = today (local midnight, Unix), note with the results (see Mantis note format).
   - **Verify Fail**: status `assigned`, handler = Fixed by Member, resolution `reopened`, Verify Fail Number +1, Fail Date = today, note with steps + Actual/Expected Result.
   - On any failure, report to the user first. Never mark Verified.
 - Otherwise change no fields and add no notes.
@@ -103,7 +103,7 @@ Add cases from RD notes and user options. Invent nothing else. List the items be
 Applies to chat reports, Mantis notes, and new issues.
 - **Steps**: English.
 - **Everything else** (summary, tables, findings, **Actual Result**, **Expected Result**): 繁體中文.
-- Tool names, IDs, paths, and values stay as-is, in backticks.
+- Tool names, IDs, paths, and values stay as-is (in backticks in chat only).
 
 ```
 Steps:
@@ -119,6 +119,20 @@ Expected Result:
 Load 對話框開在上次 Load 的資料夾 A
 ```
 
+## Mantis note format
+
+Mantis shows Markdown as raw text, so notes and new issues use no tables, `**bold**`, or backticks. Write each checked item as a `■` block: the item on the first line, then indented lines for 結果 and 依據, or one line per AP when both were tested. Chat reports keep using Markdown tables.
+
+```
+■ 原始 repro：載入舊版專案維持 2D Background
+  結果：Pass
+  依據：Mode = 2D Background，Show Background 勾選，viewport 顯示藍色 2D 背景
+
+■ UI：Boost Max 改名為 Clamp
+  iC8：Pass，標籤為「Boost Clamp」
+  CC5：Pass，標籤為「Boost Clamp」
+```
+
 ## UI interaction
 
 - Find the widget with `get_ui` and use the returned name; never guess.
@@ -126,6 +140,16 @@ Load 對話框開在上次 Load 的資料夾 A
 - A button that opens a **modal file dialog** blocks MCP. Click it from a `run_python_file` script using `QtCore.QTimer.singleShot(800, btn.click)`, read the dialog by screenshot, then cancel it. Close every dialog before the next call.
 - Read back after each action (`get_ui` or a domain tool). Use `capture_window` only for visual checks (Gizmo, scene plus Qt widgets), and only after its `application_pid`/`application_path` match the AP; otherwise discard the image.
 - Widget not found, or a click fails twice → **Missing tools**.
+- If `capture_window` says the window is minimized, restore **only the AP's main window** with a `run_python_file` script: find exactly one top-level `QMainWindow` whose `objectName()` is `MainWindow` and whose `windowTitle()` starts with `iClone 8` or `Character Creator 5`, and call `showNormal()` on it. If zero or several match, stop and ask the user to restore it. Never loop over `topLevelWidgets()` showing or maximizing windows: hidden plugin `QMainWindow`s would appear and break the AP's UI (a restart is then needed).
+
+  ```python
+  from PySide2 import QtWidgets
+  ws = [w for w in QtWidgets.QApplication.instance().topLevelWidgets()
+        if isinstance(w, QtWidgets.QMainWindow) and w.objectName() == 'MainWindow'
+        and w.windowTitle().startswith(('iClone 8', 'Character Creator 5'))]
+  if len(ws) == 1:
+      ws[0].showNormal()
+  ```
 
 ## Missing tools
 
@@ -170,6 +194,34 @@ Slow is expected; it is never Fail or Blocked on its own.
 - Custom FPS may reset to 30 after export. Set it on every export and check the file metadata.
 - Quick motion check: 20 frames at 5 fps (≈20 min) beats 60 frames at 30 fps (≈60 min).
 
+## Token usage
+
+Measure the tokens each bug's verification uses (for AI budget planning).
+
+1. Before step 1 of each bug, record the current UTC time as its start.
+2. After its report, sum the session transcript from that start: the newest `*.jsonl` under `~/.claude/projects/` (or `$CLAUDE_CONFIG_DIR/projects/`). Count `assistant` entries with `timestamp` ≥ start, deduplicated by `message.id`.
+
+```python
+import json,glob,os
+f=max(glob.glob(os.path.expanduser('~/.claude/projects/*/*.jsonl')),key=os.path.getmtime)
+START='2026-11-09T08:00:00Z'; seen=set(); t=dict(i=0,cw=0,cr=0,o=0)
+for l in open(f,encoding='utf-8'):
+    d=json.loads(l); m=d.get('message')
+    if d.get('type')!='assistant' or not isinstance(m,dict) or d.get('timestamp','')<START or m.get('id') in seen: continue
+    seen.add(m.get('id')); u=m.get('usage') or {}
+    t['i']+=u.get('input_tokens',0); t['cw']+=u.get('cache_creation_input_tokens',0)
+    t['cr']+=u.get('cache_read_input_tokens',0); t['o']+=u.get('output_tokens',0)
+print(t, sum(t.values()), len(seen), 'calls')
+```
+
+3. Report it as item 8 of the report. If no transcript is readable, write `Token：無法取得（找不到工作階段紀錄）`.
+4. Chat report only; never put token counts in Mantis notes.
+5. Append one line per bug to `C:\Users\soya.su\Desktop\Cowork\RTX Render\verify_token_log.csv` (from device bash: `$HOME/mnt/RTX Render/verify_token_log.csv`), even when the result is Blocked or the token count is unavailable (leave the numbers empty). Columns:
+   `date,time,bug_id,result,apps,calls,input,cache_write,cache_read,output,total`
+   - `date` / `time`: local time (Asia/Taipei) when the bug's verification ended, `YYYY-MM-DD`, `HH:MM`.
+   - `result`: `Pass` / `Fail` / `Blocked`. `apps`: `iC8`, `CC5`, or `iC8+CC5`.
+   - Create the file with that header if it is missing. If the folder is not reachable, say so in the report instead.
+
 ## Report format
 
 Per bug, separated by `---`:
@@ -183,3 +235,4 @@ Per bug, separated by `---`:
 5. `## 發現（回報 RD）`, only for failures or surprises.
 6. `MCP Tool：<old> → <new>`.
 7. Tally, e.g. `原始 repro Pass；coverage 6 Pass / 0 Fail / 1 Blocked。`
+8. `Token：輸入 <i>／快取寫入 <cw>／快取讀取 <cr>／輸出 <o>，合計 <total>（<呼叫數> 次呼叫）`。
