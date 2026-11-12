@@ -133,6 +133,19 @@ Mantis shows Markdown as raw text, so notes and new issues use no tables, `**bol
   CC5：Pass，標籤為「Boost Clamp」
 ```
 
+For comparisons of numbers or English-only values (e.g. parameter values vs. measured brightness), a plain-text table inside `<pre>` is allowed: Mantis renders it in a monospace font. Keep Chinese text out of `<pre>` tables, because CJK characters do not line up reliably.
+
+```
+<pre>
++---------------+--------+--------+
+| Boost Clamp   | iC8    | CC5    |
++---------------+--------+--------+
+| 14889.4       | 110.0  | 35.1   |
+| 1             | 55.5   | 31.3   |
++---------------+--------+--------+
+</pre>
+```
+
 ## UI interaction
 
 - Find the widget with `get_ui` and use the returned name; never guess.
