@@ -93,7 +93,7 @@ Add cases from RD notes and user options. Invent nothing else. List the items be
 **7. Update Mantis.**
 - Always on Pass, no approval needed: read the existing MCP Tool value, append additional unique tools you used (incl. `get_ui`/`invoke_ui`), separated by `, `, and write the full value back. The field holds about 255 characters; put any overflow in the note. Write with `update_issue` `customFields: [{fieldId: 395, value: "<full value>"}]`. If the write fails, report `MCP Tool 欄位更新失敗（field update blocked）` with the intended value.
 - Only when the user says so:
-  - **Verified**: status `verified`, Verify Defect Date = today (local midnight, Unix), note with the results (see Mantis note format).
+  - **Verified**: status `verified`, Assigned To = the verifier (the Mantis user running this skill), Verify Defect Date = today (local midnight, Unix), note with the results (see Mantis note format).
   - **Verify Fail**: status `assigned`, handler = Fixed by Member, resolution `reopened`, Verify Fail Number +1, Fail Date = today, note with steps + Actual/Expected Result.
   - On any failure, report to the user first. Never mark Verified.
 - Otherwise change no fields and add no notes.
