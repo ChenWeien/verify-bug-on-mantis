@@ -164,6 +164,16 @@ For comparisons of numbers or English-only values (e.g. parameter values vs. mea
       ws[0].showNormal()
   ```
 
+## Sharing the screen with the user
+
+The user keeps working on the same PC during verification. MCP calls, scripts inside the AP, project loads, render switches and Mantis updates run in the background and do not touch the user's mouse or keyboard.
+
+Two kinds of steps do take over the screen. Before each one, tell the user what it does and roughly how long it takes, and wait for an OK; when it ends, tell them they can use the PC again:
+- **Computer use** (`computer_*` tools: real mouse clicks, typing, drags), e.g. dialogs MCP cannot reach, drag tests, apps other than iClone/CC. The user's mouse would make clicks miss and their typing would land in the wrong window.
+- **Scripts that move windows or change focus** (minimize/restore the AP, move it to another monitor, switch the foreground app). The user's typing could go into the AP, and full-desktop screenshots can capture their private windows; crop to the AP window and drop any image that shows other apps.
+
+Also ask the user not to operate the AP under test and not to lock the screen (a locked screen makes screenshots show only the lock screen and blocks foreground changes).
+
 ## Missing tools
 
 1. **Search first**: the full tool list (including `action`/parameter variants) and `get_ui`. Don't call a tool missing without searching, and don't rewrite one that exists.
