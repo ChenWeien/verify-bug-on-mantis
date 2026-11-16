@@ -228,7 +228,7 @@ print(t, sum(t.values()), len(seen), 'calls')
 ```
 
 3. Report it as item 8 of the report. If no transcript is readable, write `Token：無法取得（找不到工作階段紀錄）`.
-4. Chat report only; never put token counts in Mantis notes.
+4. When writing the Verified or Verify Fail note, end it with the token usage as a `<pre>` table (Input, Cache write, Cache read, Output, Total, API calls), after a line `AI 驗證 Token 用量（<apps>）：`. Recompute the total right before posting so it covers all apps tested.
 5. Append one line per bug to `C:\Users\soya.su\Desktop\Cowork\RTX Render\verify_token_log.csv` (from device bash: `$HOME/mnt/RTX Render/verify_token_log.csv`), even when the result is Blocked or the token count is unavailable (leave the numbers empty). Columns:
    `date,time,bug_id,result,apps,calls,input,cache_write,cache_read,output,total`
    - `date` / `time`: local time (Asia/Taipei) when the bug's verification ended, `YYYY-MM-DD`, `HH:MM`.
