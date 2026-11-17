@@ -57,6 +57,7 @@ Version numbers such as `8.75` / `8.77` / `8.78` are registry values and do not 
 4. Never report Pass (or 「全部 Pass」) with any repro step or coverage item untested. List those as Blocked / Not run, with the reason.
 5. **Existing MCP tool → add your own → Blocked.** Report Blocked only when the AP lacks the Python API. See **Missing tools**.
 6. **Never reuse a stale object ID.** After an AP restart, a project load, or an undo/delete, call `list_objects` again and use only the new IDs. Before any call that takes an `object_id` / `camera_id` (e.g. `pick_camera_focus_target`, `set_camera_settings`, `link_object`), confirm the ID is in the current `list_objects` result. An ID that no longer exists can crash the AP (`pick_camera_focus_target` does); that crash is the agent's fault, not a bug, so never report it.
+7. **No `PrintWindow` / `grabWindow` on AP windows under DX12 / RTX.** Capturing a D3D child window (e.g. a reopened Mini Viewport) this way can crash the AP; that crash is the agent's fault, not a bug, so never report it. Under DX12 use `capture_window`, or ask the user to look.
 
 ## Workflow
 
