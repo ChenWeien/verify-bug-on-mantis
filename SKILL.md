@@ -56,6 +56,7 @@ Version numbers such as `8.75` / `8.77` / `8.78` are registry values and do not 
 3. Timeouts, freezes, or dropped calls caused by rules 1–2 are procedure errors, **not bugs**. Never report them as Verify Fail.
 4. Never report Pass (or 「全部 Pass」) with any repro step or coverage item untested. List those as Blocked / Not run, with the reason.
 5. **Existing MCP tool → add your own → Blocked.** Report Blocked only when the AP lacks the Python API. See **Missing tools**.
+6. **Never reuse a stale object ID.** After an AP restart, a project load, or an undo/delete, call `list_objects` again and use only the new IDs. Before any call that takes an `object_id` / `camera_id` (e.g. `pick_camera_focus_target`, `set_camera_settings`, `link_object`), confirm the ID is in the current `list_objects` result. An ID that no longer exists can crash the AP (`pick_camera_focus_target` does); that crash is the agent's fault, not a bug, so never report it.
 
 ## Workflow
 
