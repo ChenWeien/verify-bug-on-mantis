@@ -100,6 +100,17 @@ Add cases from RD notes and user options. Invent nothing else. List the items be
   - On any failure, report to the user first. Never mark Verified.
 - Otherwise change no fields and add no notes.
 
+**8. New issues** (only when the user asks to open one for a finding).
+- `create_issue` in the verified bug's project. Pick the category by name from `GET /api/rest/projects/<id>` (e.g. `Export FBX`, `Material`).
+- Set these custom fields at creation, or the API returns 400:
+  - RD Review = `0.未分類`, PM Priority for CC & IC = ` 00. 未分類 `
+  - AI Agent Run Find = `Yes` (every issue this skill files)
+  - Discovered by = `02. Exploratory Test`, Report Defect Type (e.g. `產出結果有錯誤`), Test Phase = `02. Function Part I`
+  - Found via AI Knowledge Base = `No`, Auto Regression = `1. N/A`, Iteration = `4. Uncertain`, In Feedback Tracker = `No`, Older Version Reproducible = `New Function` unless an older build was checked
+- **Product Version is required.** Map the tested build to the project's version list (`IC8RTX_20261118.2` → `1118.2`). If that version does not exist yet, use `NEXT`. `create_issue` / `update_issue` have no version parameter: set it with a REST `PATCH /api/rest/issues/<id>` body `{"version": {"id": <id>}}` (run from the AP's Python), then read it back.
+- Description: steps in English, Actual / Expected Result in 繁體中文, the build, and "found while verifying #<id>". Attach screenshots in a note (REST `POST .../notes` with `files`).
+- Relationships to the original bug: tell the user to set them; the tools cannot.
+
 ## Language
 
 Applies to chat reports, Mantis notes, and new issues.
