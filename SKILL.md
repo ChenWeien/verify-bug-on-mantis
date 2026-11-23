@@ -107,6 +107,7 @@ Add cases from RD notes and user options. Invent nothing else. List the items be
   - AI Agent Run Find = `Yes` (every issue this skill files)
   - Discovered by = `02. Exploratory Test`, Report Defect Type (e.g. `產出結果有錯誤`), Test Phase = `02. Function Part I`
   - Found via AI Knowledge Base = `No`, Auto Regression = `1. N/A`, Iteration = `4. Uncertain`, In Feedback Tracker = `No`, Older Version Reproducible = `New Function` unless an older build was checked
+  - Fail Date = `966787200` (2000-08-21, the web form default), Verify Fail Number = `0`, Bug Review Status = `None`. These are required on update. The web form fills them but REST creation leaves them empty, so anyone who later edits the issue in the browser gets `APPLICATION ERROR #11` (e.g. #101370).
 - **Product Version is required.** Map the tested build to the project's version list (`IC8RTX_20261118.2` → `1118.2`). If that version does not exist yet, use `NEXT`. `create_issue` / `update_issue` have no version parameter: set it with a REST `PATCH /api/rest/issues/<id>` body `{"version": {"id": <id>}}` (run from the AP's Python), then read it back.
 - Description: steps in English, Actual / Expected Result in 繁體中文, the build, and "found while verifying #<id>". Attach screenshots in a note (REST `POST .../notes` with `files`).
 - Relationships to the original bug: tell the user to set them; the tools cannot.
