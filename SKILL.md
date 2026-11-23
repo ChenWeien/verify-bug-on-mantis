@@ -110,7 +110,7 @@ Add cases from RD notes and user options. Invent nothing else. List the items be
   - Fail Date = `966787200` (2000-08-21, the web form default), Verify Fail Number = `0`, Bug Review Status = `None`. These are required on update. The web form fills them but REST creation leaves them empty, so anyone who later edits the issue in the browser gets `APPLICATION ERROR #11` (e.g. #101370).
 - **Product Version is required.** Map the tested build to the project's version list (`IC8RTX_20261118.2` → `1118.2`). If that version does not exist yet, use `NEXT`. `create_issue` / `update_issue` have no version parameter: set it with a REST `PATCH /api/rest/issues/<id>` body `{"version": {"id": <id>}}` (run from the AP's Python), then read it back.
 - Description: steps in English, Actual / Expected Result in 繁體中文, the build, and "found while verifying #<id>". Attach screenshots in a note (REST `POST .../notes` with `files`).
-- Relationships to the original bug: tell the user to set them; the tools cannot.
+- Relationships: set them yourself right after creating the issue. Link the original bug and every issue number the description mentions as `related-to`, via REST from AP Python: `POST issues/<new id>/relationships` with `{"issue":{"id":<other id>},"type":{"name":"related-to"}}`. Skip links that already exist, and list the links you added in the report.
 
 ## Language
 
@@ -211,7 +211,7 @@ DX11 → DX12 is slow, and loads can open modal dialogs. Never run a load and a 
 - Start: `load_project(action="start", path=…)` or `render_system(action="start", system="dx12")` returns `job_id`.
 - Poll: `action="get"`, one call every few seconds, until `completed` / `failed` / `cancelled`. A switch counts as `completed` only when the new renderer is active.
 - `waiting_for_dialog`: answer with `invoke_ui(action="invoke_dialog", dialog_id, action_id)` using the returned IDs, then keep polling. A closed dialog is not completion.
-  - RTX switch: `qtRtxScenePreparationDialog`, Ok/Cancel = `qtRtxScenePreparationOkButton` / `…CancelButton`. Cancel keeps the current renderer.
+  - RTX switch: `render_system` never shows the "Convert Project Data for RTX Render" dialog (`qtRtxScenePreparationDialog`) and always applies Clamp Light. This is by design: the Python API must not block on dialogs. To test the dialog or the unchecked-Clamp case, switch from the UI (`qtRenderEngineComboBoxEx`) in a `run_python_file` script with `QtCore.QTimer.singleShot`, then answer the dialog (`qtRtxScenePreparationOkButton` / `…CancelButton`). Never report the missing dialog under `render_system` as a bug.
   - RTX load: `qtRtxProjectLoadPreparationDialog`, Ok/Cancel = `qtRtxProjectLoadPreparationOkButton` / `…CancelButton`. Cancel skips preparation and keeps loading.
 - `cancel` stops queued work only; once native work starts, answer the dialog instead. If `get` times out, wait up to 5 min before concluding.
 
